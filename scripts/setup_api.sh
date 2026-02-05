@@ -7,6 +7,8 @@ STAGE=dev
 API_NAME=image-service-api
 ROLE_ARN=arn:aws:iam::000000000000:role/lambda-role
 ZIP_FILE=image_service.zip
+timeout=15
+memory=256
 
 echo "Building Lambda ZIP..."
 rm -f $ZIP_FILE
@@ -26,10 +28,13 @@ create_lambda () {
     --role $ROLE_ARN \
     --handler $HANDLER \
     --zip-file fileb://$ZIP_FILE \
+    --timeout $timeout \
+    --memory-size $memory \
     --region $REGION \
     2>/dev/null || echo "  ↪ Lambda $FUNCTION_NAME already exists"
 }
 
+# Create lambdas if they don't exist.
 create_lambda create-image handlers.create_image.handler
 create_lambda list-images handlers.list_images.handler
 create_lambda get-image handlers.get_image.handler

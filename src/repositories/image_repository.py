@@ -44,6 +44,9 @@ class ImageRepository:
                 }
             )
 
+        print("Image data is inserted successfully")
+
+
     # Get by ID
     def get_image(self, image_id: str) -> Optional[dict]:
         response = self.table.get_item(
@@ -52,6 +55,7 @@ class ImageRepository:
                 "SK": "METADATA"
             }
         )
+        print("image by id is successful")
         return response.get("Item")
 
     # List by owner
@@ -64,6 +68,7 @@ class ImageRepository:
             },
             Limit=limit
         )
+        print(f"owner response is {response}")
         return response.get("Items", [])
 
     # List by tag
@@ -76,4 +81,20 @@ class ImageRepository:
             },
             Limit=limit
         )
+        print(f"tag response is {response}")
         return response.get("Items", [])
+
+    # List all images
+    def list_all_images(self, limit: int = 20, last_key=None):
+        scan_args = {"Limit": limit}
+
+        if last_key:
+            scan_args["ExclusiveStartKey"] = last_key
+
+        response = self.table.scan(**scan_args)
+
+        return {
+            "items" : response.get("Items", []),
+            "next_key" : response.get("LastEvaluatedKey")
+        }
+

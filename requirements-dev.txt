@@ -1,3 +1,5 @@
 pytest>=7.0
 pytest-mock>=3.10
 pytest-cov>=4.0
+PyJWT==2.8.0
+cryptography

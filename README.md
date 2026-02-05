@@ -4,7 +4,7 @@ A serverless **Image Upload & Management Service** built using **AWS-style archi
 
 The service supports:
 - Uploading images with metadata
-- Listing images with filters
+- Listing images with and without filters
 - Generating secure download URLs
 - Deleting images (hard delete)
 
@@ -102,13 +102,15 @@ pip install -r requirements-dev.txt
 
 ---
 
-### 5️. Create All AWS Resources (One Command)
+### 5️. Create All AWS Resources
 
 ```bash
+./infra/deploy_stack.sh
+
 ./scripts/setup_api.sh
 ```
 
-This script automatically:
+These scripts automatically:
 - Builds Lambda ZIP
 - Creates Lambda functions
 - Creates API Gateway
@@ -116,7 +118,10 @@ This script automatically:
 - Wires Lambda integrations
 - Deploys the API
 
-We can rerun this script anytime where the resources will be re-created. 
+```bash
+./scripts/re-deploy.sh
+```
+This will redeploy the code to the available lambdas
 
 ---
 
@@ -173,7 +178,10 @@ Body:
 
 ### 3️. List Images
 
-**GET** `/images`
+1) **GET** `/images`
+- This will list all available images.
+
+2) **GET** `/images`
 
 Query params (at least one required):
 - `owner_id`
@@ -183,7 +191,6 @@ Example:
 ```
 /images?owner_id=test123
 ```
-
 ---
 
 ### 4️. Get Image (Download URL)
@@ -250,7 +257,7 @@ pytest --cov=src
 This project demonstrates a serverless backend achieving the following tasks:
 1. Create APIs for:
    1. Uploading image with metadata
-   2. List all images, support at least two filters to search
+   2. List all images, and supports at least two filters to search
    3. View/download image
    4. Delete an image
 2. Write unit tests to cover all scenarios

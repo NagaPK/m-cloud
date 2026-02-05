@@ -4,6 +4,7 @@ from services.image_service import ImageService
 
 def handler(event, context):
     params = event.get("queryStringParameters") or {}
+    last_key_param = params.get("last_key")
 
     owner_id = params.get("owner_id")
     tag = params.get("tag")
@@ -13,8 +14,10 @@ def handler(event, context):
     try:
         images = service.list_images(
             owner_id=owner_id,
-            tag=tag
+            tag=tag,
+            last_key=last_key_param
         )
+        print(f"images result is {images}")
     except ValueError as e:
         return {
             "statusCode": 400,
@@ -24,5 +27,5 @@ def handler(event, context):
     return {
         "statusCode": 200,
         "headers": {"Content-Type": "application/json"},
-        "body": json.dumps(images)
+        "body": json.dumps(images, default=str)
     }
