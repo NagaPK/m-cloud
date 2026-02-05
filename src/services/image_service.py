@@ -13,12 +13,14 @@ class ImageService:
     # Create image (metadata + upload URL)
     # -------------------------
     def create_image(
-        self,
-        owner_id: str,
-        content_type: str,
-        size_bytes: int,
-        tags: List[str]
+            self,
+            owner_id: str,
+            content_type: str,
+            size_bytes: int,
+            tags: List[str]
     ) -> Dict:
+
+        print('starting to insert image data')
         image = Image.create(
             owner_id=owner_id,
             content_type=content_type,
@@ -45,18 +47,36 @@ class ImageService:
     # List images (filter by owner or tag)
     # -------------------------
     def list_images(
-        self,
-        owner_id: Optional[str] = None,
-        tag: Optional[str] = None,
-        limit: int = 20
-    ) -> List[Dict]:
+            self,
+            owner_id: Optional[str] = None,
+            tag: Optional[str] = None,
+            limit: int = 20,
+            last_key: Dict = None
+    ) -> Dict:
         if owner_id:
-            return self.repo.list_by_owner(owner_id, limit)
-
+            print(f"owner_id is {owner_id}")
+            items = self.repo.list_by_owner(owner_id, limit)
+            return {
+                "images": items,
+                "next_key": None
+            }
         if tag:
-            return self.repo.list_by_tag(tag, limit)
+            print(f"tag is {tag}")
+            items = self.repo.list_by_tag(tag, limit)
+            return {
+                "images": items,
+                "next_key": None
+            }
 
-        raise ValueError("Either owner_id or tag must be provided")
+        print("owner_id and tag are not present. Returning all available images")
+        result = self.repo.list_all_images(limit=limit, last_key=last_key)
+
+        return {
+            "images": result["items"],
+            "next_key": result["next_key"]
+        }
+
+        # raise ValueError("Either owner_id or tag must be provided")
 
     # -------------------------
     # Get image download URL

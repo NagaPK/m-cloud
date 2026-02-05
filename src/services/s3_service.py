@@ -1,13 +1,18 @@
+import os
+
 import boto3
+
 from config_file import AWS_ENDPOINT_URL, AWS_REGION, S3_BUCKET
 
 
 class S3Service:
     def __init__(self):
+        self.endpoint_url = os.getenv("AWS_ENDPOINT_URL")
+        self.public_endpoint_url = os.getenv("LOCALSTACK_PUBLIC_URL", "http://localhost:4566")
         self.client = boto3.client(
             "s3",
             region_name=AWS_REGION,
-            endpoint_url=AWS_ENDPOINT_URL
+            endpoint_url=self.endpoint_url
         )
 
     # -------------------------
@@ -27,7 +32,7 @@ class S3Service:
                 "ContentType": content_type
             },
             ExpiresIn=expires_in
-        )
+        ).replace(self.endpoint_url, self.public_endpoint_url)
 
     # -------------------------
     # Download URL
@@ -44,7 +49,7 @@ class S3Service:
                 "Key": s3_key
             },
             ExpiresIn=expires_in
-        )
+        ).replace(self.endpoint_url, self.public_endpoint_url)
 
     # -------------------------
     # Delete Object

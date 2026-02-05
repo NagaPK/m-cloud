@@ -1,0 +1,248 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Image Service - LocalStack Serverless Stack
+
+Parameters:
+  LambdaCodeBucket:
+    Type: String
+    Default: local-bucket
+  LambdaCodeKey:
+    Type: String
+    Default: image_service.zip
+
+Resources:
+
+  #Dynamo DB
+  ImagesTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    Properties:
+      TableName: Images
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: image_id
+          AttributeType: S
+        - AttributeName: owner_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: image_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: owner-index
+          KeySchema:
+            - AttributeName: owner_id
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
+  # S3
+  ImageBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: image-bucket
+
+  ### IAM Role for LocalStack
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: image-service-lambda-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+
+  ### Lambda Functions
+  CreateImageLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: create-image
+      Runtime: python3.10
+      Handler: handlers.create_image.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 15
+      MemorySize:
+        256
+      Code:
+        S3Bucket: !Ref LambdaCodeBucket
+        S3Key: !Ref LambdaCodeKey
+      Environment:
+        Variables:
+          AWS_REGION: us-east-1
+          DYNAMODB_TABLE: !Ref ImagesTable
+          S3_BUCKET: !Ref ImageBucket
+          LOCALSTACK_PUBLIC_URL: http://localhost:4566
+
+
+  CreateImageLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref CreateImageLambda
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+
+  ListImagesLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: list-images
+      Runtime: python3.10
+      Handler: handlers.list_images.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 15
+      MemorySize: 256
+      Code:
+        S3Bucket: !Ref LambdaCodeBucket
+        S3Key: !Ref LambdaCodeKey
+      Environment:
+        Variables:
+          AWS_REGION: us-east-1
+          DYNAMODB_TABLE: !Ref ImagesTable
+
+  ListImagesLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ListImagesLambda
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+
+  GetImageLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: get-image
+      Runtime: python3.10
+      Handler: handlers.get_image.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 15
+      MemorySize: 256
+      Code:
+        S3Bucket: !Ref LambdaCodeBucket
+        S3Key: !Ref LambdaCodeKey
+      Environment:
+        Variables:
+          AWS_REGION: us-east-1
+          DYNAMODB_TABLE: !Ref ImagesTable
+          S3_BUCKET: !Ref ImageBucket
+          LOCALSTACK_PUBLIC_URL: http://localhost:4566
+
+  GetImageLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref GetImageLambda
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+
+  DeleteImageLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: delete-image
+      Runtime: python3.10
+      Handler: handlers.delete_image.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 15
+      MemorySize: 256
+      Code:
+        S3Bucket: !Ref LambdaCodeBucket
+        S3Key: !Ref LambdaCodeKey
+      Environment:
+        Variables:
+          AWS_REGION: us-east-1
+          DYNAMODB_TABLE: !Ref ImagesTable
+          S3_BUCKET: !Ref ImageBucket
+
+  DeleteImageLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref DeleteImageLambda
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+
+  ### API Gateway
+  RestApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: image-service-api
+
+  ImagesResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref RestApi
+      ParentId: !GetAtt RestApi.RootResourceId
+      PathPart: images
+
+  ImageIdResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref RestApi
+      ParentId: !Ref ImagesResource
+      PathPart: "{image_id}"
+
+  ### Methods
+  PostImagesMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestApi
+      ResourceId: !Ref ImagesResource
+      HttpMethod: POST
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub >
+          arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CreateImageLambda.Arn}/invocations
+
+  GetImagesMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestApi
+      ResourceId: !Ref ImagesResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub >
+          arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ListImagesLambda.Arn}/invocations
+
+  GetImageMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestApi
+      ResourceId: !Ref ImageIdResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub >
+          arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetImageLambda.Arn}/invocations
+
+  DeleteImageMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestApi
+      ResourceId: !Ref ImageIdResource
+      HttpMethod: DELETE
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub >
+          arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DeleteImageLambda.Arn}/invocations
+
+  ### Deployment
+  ApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+      - PostImagesMethod
+      - GetImagesMethod
+      - GetImageMethod
+      - DeleteImageMethod
+      - CreateImageLambdaPermission
+      - ListImagesLambdaPermission
+      - GetImageLambdaPermission
+      - DeleteImageLambdaPermission
+    Properties:
+      RestApiId: !Ref RestApi
+      StageName: dev
