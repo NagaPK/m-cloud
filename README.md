@@ -251,6 +251,7 @@ pytest --cov=src
 - OpenAPI / Swagger specification
 - Pagination for list APIs
 - Integration tests with LocalStack
+
 ---
 
 ## Summary
